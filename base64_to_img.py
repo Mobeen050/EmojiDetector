@@ -1,7 +1,7 @@
-import pandas as pd
-from PIL import Image
 import io
 import base64
+import pandas as pd
+from PIL import Image
 
 def base64_to_image(base64_string):
     base64_string = base64_string[22:]
