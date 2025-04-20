@@ -1,25 +1,46 @@
 import io
+import os
 import base64
 import pandas as pd
+from pathlib import Path
 from PIL import Image
 
-def base64_to_image(base64_string):
-    base64_string = base64_string[22:]
+def base64_to_image(base64_string: str) -> Image.Image:
+    """Strip header, decode base64 and return a PIL Image."""
+    # if your strings include "data:image/…;base64," prefix
+    if base64_string.startswith("data:"):
+        base64_string = base64_string.split(",", 1)[1]
     image_data = base64.b64decode(base64_string)
-    image = Image.open(io.BytesIO(image_data))
-    return image
+    return Image.open(io.BytesIO(image_data))
 
-# Function to process the dataframe
-def process_images(dataframe, number_of_entries):
-    # Assuming the 5th column has index 4 (0-based indexing)
-    for base64_string in dataframe.iloc[:number_of_entries, 4]:
-        image = base64_to_image(base64_string)
-        image.show() # Display the image
-        # image.save("filename.png")
+def process_images(
+    dataframe: pd.DataFrame,
+    number_of_entries: int,
+    out_dir: str = "output"
+):
+    # Ensure output directory exists
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
 
-# Read the CSV file (or any other data source)
-data = pd.read_csv("./emojis.csv")
+    # Iterate over the first N rows
+    for idx, row in dataframe.iloc[:number_of_entries].iterrows():
+        # parse image
+        b64 = row[4]              # 5th column
+        img = base64_to_image(b64)
 
-# Process the first X entries of the 5th column
-X = 5  
-process_images(data, X)
+        # split names from 3rd column
+        names = str(row[2]).split()
+
+        # save one file per name
+        for i, name in enumerate(names):
+            # e.g. output/Alice_0.png
+            filename = f"{name}_{i}.png"
+            dest = os.path.join(out_dir, filename)
+            img.save(dest)
+            print(f"Saved → {dest}")
+
+if __name__ == "__main__":
+    # load CSV    
+    df = pd.read_csv("./emojis.csv")
+
+    # process first 5 rows
+    process_images(df, number_of_entries=5, out_dir="images")
