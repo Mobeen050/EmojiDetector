@@ -23,24 +23,30 @@ def process_images(
 
     # Iterate over the first N rows
     for idx, row in dataframe.iloc[:number_of_entries].iterrows():
-        # parse image
-        b64 = row[4]              # 5th column
-        img = base64_to_image(b64)
+        for col in range(3, 9):
+            # parse image
+            b64 = row[col]              # 5th column
+            
+            
+            
 
-        # split names from 3rd column
-        names = str(row[2]).split()
-
-        # save one file per name
-        for i, name in enumerate(names):
+            # split names from 3rd column
+            name = str(row[1])
+            
+            if not isinstance(b64, str) or pd.isna(b64):
+                print(f"Row {name}: no Base-64 string -> skipped")
+                continue
+            
+            img = base64_to_image(b64)
             # e.g. output/Alice_0.png
-            filename = f"{name}_{i}.png"
+            filename = f"{name}_{col-3}.png"
             dest = os.path.join(out_dir, filename)
             img.save(dest)
-            print(f"Saved → {dest}")
+            print(f"Saved -> {dest}")
 
 if __name__ == "__main__":
     # load CSV    
     df = pd.read_csv("./emojis.csv")
 
     # process first 5 rows
-    process_images(df, number_of_entries=5, out_dir="images")
+    process_images(df, number_of_entries=99, out_dir="images")
