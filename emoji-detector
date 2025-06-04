@@ -1,0 +1,69 @@
+!pip install -q opencv-python-headless matplotlib
+
+
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def detect_emojis_refined(image_path, min_size=20, max_size=100):
+    img = cv2.imread(image_path)
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    # Crop to likely chat area (adjust for your image layout)
+    h, w = img.shape[:2]
+    top_crop = int(0.15 * h)
+    bottom_crop = int(0.88 * h)
+    chat_img = img[top_crop:bottom_crop, :]
+
+    hsv = cv2.cvtColor(chat_img, cv2.COLOR_BGR2HSV)
+
+    # Filter for colorful regions (most emojis are highly saturated)
+    lower_color = np.array([5, 80, 80])     # adjusted to avoid light gray/white text
+    upper_color = np.array([170, 255, 255])
+    mask = cv2.inRange(hsv, lower_color, upper_color)
+
+    # Morphological operations to clean up noise
+    kernel = np.ones((3, 3), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+
+    # Find contours
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    emoji_rects = []
+    for cnt in contours:
+        x, y, w_box, h_box = cv2.boundingRect(cnt)
+        aspect_ratio = w_box / float(h_box)
+        area = cv2.contourArea(cnt)
+        rect_area = w_box * h_box
+        perimeter = cv2.arcLength(cnt, True)
+
+        # Shape and compactness filtering
+        extent = area / float(rect_area + 1e-5)  # how much of the bounding box is filled
+        solidity = area / (cv2.contourArea(cv2.convexHull(cnt)) + 1e-5)  # avoid text noise
+
+        if (min_size < w_box < max_size and min_size < h_box < max_size and
+            0.75 < aspect_ratio < 1.25 and
+            extent > 0.4 and  # filters flat shapes
+            solidity > 0.7 and
+            area / (perimeter + 1e-5) > 5):  # avoid wispy contours
+
+            emoji_rects.append((x, y + top_crop, x + w_box, y + h_box + top_crop))
+
+    # Draw bounding boxes
+    debug_img = img_rgb.copy()
+    for x1, y1, x2, y2 in emoji_rects:
+        cv2.rectangle(debug_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+    # Show result
+    plt.figure(figsize=(10, 10))
+    plt.imshow(debug_img)
+    plt.title(f"Filtered emoji candidates: {len(emoji_rects)}")
+    plt.axis('off')
+    plt.show()
+
+    return emoji_rects, debug_img
+
+# Example usage
+emoji_rects, result_img = detect_emojis_refined('/content/A.jpg')
+
+
