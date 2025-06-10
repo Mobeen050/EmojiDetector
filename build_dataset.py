@@ -1,4 +1,3 @@
-# build_dataset_from_raw.py
 import os, random, shutil
 from pathlib import Path
 
